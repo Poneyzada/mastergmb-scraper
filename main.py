@@ -5,25 +5,25 @@ from playwright.async_api import async_playwright
 
 app = FastAPI()
 
-@app.get()
+@app.get("/")
 async def root():
-    return {status MasterGMB Online}
+    return {"status": "MasterGMB Online"}
 
-@app.get(analyze)
+@app.get("/analyze")
 async def analyze(niche: str, location: str):
-    async with async_playwright() as p
+    async with async_playwright() as p:
         # Launching browser with settings for Railway
         browser = await p.chromium.launch(
             headless=True, 
-            args=[--no-sandbox, --disable-setuid-sandbox, --disable-dev-shm-usage]
+            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
         )
-        context = await browser.new_context(user_agent=Mozilla5.0 (Windows NT 10.0; Win64; x64) AppleWebKit537.36)
+        context = await browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36")
         page = await context.new_page()
         
-        search_query = f{niche} em {location}
-        url = fhttpswww.google.commapssearch{search_query.replace(' ', '+')}
+        search_query = f"{niche} em {location}"
+        url = f"https://www.google.com/maps/search/{search_query.replace(' ', '+')}"
         
-        try
+        try:
             # Aumentamos o timeout para 60 segundos para evitar bugs de lentidão
             await page.goto(url, timeout=60000)
             await page.wait_for_selector('.Nv2Ybe', timeout=15000)
@@ -32,41 +32,40 @@ async def analyze(niche: str, location: str):
             competitors = []
 
             # Coletamos os Top 5
-            for listing in listings[5]
-                try
+            for listing in listings[:5]:
+                try:
                     name_raw = await listing.inner_text()
-                    clean_name = name_raw.split('n')[0]
+                    clean_name = name_raw.split('\n')[0]
                     
                     # Clicar para pegar reviews (Gap Analysis)
                     await listing.click()
                     await page.wait_for_timeout(2000)
                     review_elements = await page.query_selector_all('.MyE63c')
-                    reviews = [await r.inner_text() for r in review_elements[3]]
+                    reviews = [await r.inner_text() for r in review_elements[:3]]
 
                     competitors.append({
-                        name clean_name,
-                        reviews reviews
+                        "name": clean_name,
+                        "reviews": reviews
                     })
-                except
+                except:
                     continue
 
             await browser.close()
             return {
-                status success,
-                data {
-                    niche niche,
-                    location location,
-                    competitors competitors
+                "status": "success",
+                "data": {
+                    "niche": niche,
+                    "location": location,
+                    "competitors": competitors
                 }
             }
 
-        except Exception as e
+        except Exception as e:
             await browser.close()
-            return {status error, message str(e)}
+            return {"status": "error", "message": str(e)}
 
-if __name__ == __main__
+if __name__ == "__main__":
     # O Railway usa a variável de ambiente PORT automaticamente
-    port = int(os.environ.get(PORT, 8080))
     import uvicorn
-
-    uvicorn.run(app, host=0.0.0.0, port=port)
+    port = int(os.environ.get("PORT", 8080))
+    uvicorn.run(app, host="0.0.0.0", port=port)
