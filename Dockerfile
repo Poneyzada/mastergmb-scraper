@@ -1,16 +1,17 @@
-# Usamos a imagem oficial do Playwright que já vem com TODOS os navegadores instalados
+# Imagem oficial da Microsoft que já vem com Python e TODOS os navegadores instalados
 FROM mcr.microsoft.com/playwright/python:v1.40.0-jammy
 
-# Define a pasta de trabalho
+# Pasta de trabalho no servidor
 WORKDIR /app
 
-# Copia os arquivos do projeto
+# Copia os arquivos do seu GitHub para dentro do servidor
 COPY . /app
 
-# Instala as dependências do Python
+# Instala as bibliotecas (FastAPI, Uvicorn, etc)
 RUN pip install --no-cache-dir -r requirements.txt
 
-# O Playwright já está instalado na imagem, não precisamos rodar o install!
+# Expõe a porta que o servidor vai usar
+EXPOSE 8080
 
-# Comando para rodar a aplicação
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Comando para rodar a aplicação usando a porta dinâmica do Railway
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
