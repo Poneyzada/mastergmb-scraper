@@ -1,6 +1,6 @@
 import os
 import asyncio
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from playwright.async_api import async_playwright
 
 app = FastAPI()
@@ -11,42 +11,43 @@ async def root():
 
 @app.get("/analyze")
 async def analyze(niche: str, location: str):
+    if not niche or not location:
+        return {"status": "error", "message": "Nicho e Localização são obrigatórios"}
+
     async with async_playwright() as p:
-        # Launching browser with settings for Railway
-        browser = await p.chromium.launch(
-            headless=True, 
-            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
-        )
-        context = await browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36")
-        page = await context.new_page()
-        
-        search_query = f"{niche} em {location}"
-        url = f"https://www.google.com/maps/search/{search_query.replace(' ', '+')}"
-        
         try:
-            # Aumentamos o timeout para 60 segundos para evitar bugs de lentidão
-            await page.goto(url, timeout=60000)
-            await page.wait_for_selector('.Nv2Ybe', timeout=15000)
+            # Lançando o browser com as proteções do Railway
+            browser = await p.chromium.launch(
+                headless=True, 
+                args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
+            )
+            context = await browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
+            )
+            page = await context.new_page()
             
+            search_query = f"{niche} em {location}"
+            url = f"https://www.google.com/maps/search/{search_query.replace(' ', '+')}"
+            
+            print(f"Buscando: {url}") # Isso vai aparecer nos Logs do Railway
+            
+            await page.goto(url, timeout=60000)
+            
+            # Tenta esperar por um dos seletores do Google Maps
+            try:
+                await page.wait_for_selector('.Nv2Ybe', timeout=20000)
+            except:
+                # Se não achar o seletor, pode ser que o Google mudou. Pegamos o que tiver.
+                print("Seletor principal não encontrado, tentando alternativa...")
+
             listings = await page.query_selector_all('.Nv2Ybe')
             competitors = []
 
-            # Coletamos os Top 5
             for listing in listings[:5]:
                 try:
                     name_raw = await listing.inner_text()
                     clean_name = name_raw.split('\n')[0]
-                    
-                    # Clicar para pegar reviews (Gap Analysis)
-                    await listing.click()
-                    await page.wait_for_timeout(2000)
-                    review_elements = await page.query_selector_all('.MyE63c')
-                    reviews = [await r.inner_text() for r in review_elements[:3]]
-
-                    competitors.append({
-                        "name": clean_name,
-                        "reviews": reviews
-                    })
+                    competitors.append({"name": clean_name})
                 except:
                     continue
 
@@ -61,11 +62,10 @@ async def analyze(niche: str, location: str):
             }
 
         except Exception as e:
-            await browser.close()
+            print(f"ERRO CRÍTICO: {str(e)}")
             return {"status": "error", "message": str(e)}
 
 if __name__ == "__main__":
-    # O Railway usa a variável de ambiente PORT automaticamente
     import uvicorn
     port = int(os.environ.get("PORT", 8080))
     uvicorn.run(app, host="0.0.0.0", port=port)
