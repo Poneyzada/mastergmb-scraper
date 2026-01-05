@@ -6,11 +6,11 @@ from playwright.async_api import async_playwright
 app = FastAPI()
 
 @app.get()
-async def root()
+async def root():
     return {status MasterGMB Online}
 
 @app.get(analyze)
-async def analyze(niche str, location str)
+async def analyze(niche: str, location: str):
     async with async_playwright() as p
         # Launching browser with settings for Railway
         browser = await p.chromium.launch(
@@ -68,4 +68,5 @@ if __name__ == __main__
     # O Railway usa a variável de ambiente PORT automaticamente
     port = int(os.environ.get(PORT, 8080))
     import uvicorn
+
     uvicorn.run(app, host=0.0.0.0, port=port)
